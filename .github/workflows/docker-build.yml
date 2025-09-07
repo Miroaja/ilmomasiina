@@ -2,7 +2,7 @@ name: Build & deploy
 
 env:
   # Change this to upload the built image to your own organization.
-  docker_tag: "ghcr.io/arabikumi/ilmomasiina"
+  docker_tag: "ghcr.io/miroaja/ilmomasiina"
 
   # Change these to customize your build.
   branding_header_title_text: "Koneinsinöörikillan ilmokone"
@@ -32,7 +32,7 @@ jobs:
       packages: write
       contents: read
     # Change this to your repo name to build automatically on your fork.
-    if: github.repository == 'arabikumi/ilmomasiina'
+    if: github.repository == 'miroaja/ilmomasiina'
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -84,6 +84,7 @@ jobs:
       tag: ${{ steps.meta.outputs.version }}
 
   # This is disabled on forks, you'll most likely need to modify it anyway for your usage
+  # TODO: investigate this mess
   deploy:
     name: Push update to App Service
     needs: docker
