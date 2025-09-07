@@ -29,6 +29,9 @@ $lighter-secondary-hover: false !default;
 // You can disable this if you use something light.
 $force-link-underline: true !default;
 
+// If you don't want a header logo, set this to false.
+$header-logo: true !default; // sass can perish
+
 // Import Bootstrap core mixins/variables/functions for use in Ilmomasiina's SCSS.
 
 @import "bootstrap/scss/functions";
