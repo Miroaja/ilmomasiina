@@ -1,11 +1,11 @@
 import { push } from "connected-react-router";
 import { toast } from "react-toastify";
 
-import { ApiError, apiFetch } from "@tietokilta/ilmomasiina-components";
-import { AdminLoginResponse, ErrorCode } from "@tietokilta/ilmomasiina-models";
+import { apiFetch } from "@tietokilta/ilmomasiina-components";
+import { AdminLoginResponse } from "@tietokilta/ilmomasiina-models";
 import i18n from "../../i18n";
 import appPaths from "../../paths";
-import type { DispatchAction } from "../../store/types";
+import type { DispatchAction, GetState } from "../../store/types";
 import { LOGIN_SUCCEEDED, RESET } from "./actionTypes";
 
 export const loginSucceeded = (payload: AdminLoginResponse) =>
@@ -83,27 +83,25 @@ export const loginExpired = () => (dispatch: DispatchAction) => {
   dispatch(redirectToLogin());
 };
 
-export const renewLogin = (accessToken: string) => async (dispatch: DispatchAction) => {
+const RENEW_LOGIN_THRESHOLD = 5 * 60 * 1000;
+
+export const renewLogin = () => async (dispatch: DispatchAction, getState: GetState) => {
+  const { accessToken } = getState().auth;
+  if (!accessToken || Date.now() < accessToken.expiresAt - RENEW_LOGIN_THRESHOLD || Date.now() > accessToken.expiresAt)
+    return;
+
   try {
     if (accessToken) {
       const sessionResponse = await apiFetch<AdminLoginResponse>("authentication/renew", {
         method: "POST",
-        body: {
-          accessToken,
-        },
-        headers: {
-          Authorization: accessToken,
-        },
+        body: { accessToken },
+        headers: { Authorization: accessToken.token },
       });
       if (sessionResponse) {
         dispatch(loginSucceeded(sessionResponse));
       }
     }
   } catch (err) {
-    if (err instanceof ApiError && err.code === ErrorCode.BAD_SESSION) {
-      dispatch(loginExpired());
-    } else {
-      throw err;
-    }
+    // Ignore errors from login renewal - loginExpired() will trigger via requireAuth.
   }
 };

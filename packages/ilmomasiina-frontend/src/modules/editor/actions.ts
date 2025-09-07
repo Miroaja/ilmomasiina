@@ -1,12 +1,14 @@
 import { ApiError } from "@tietokilta/ilmomasiina-components";
 import {
   AdminEventResponse,
+  AdminSignupCreateBody,
+  AdminSignupSchema,
+  AdminSignupUpdateBody,
   CategoriesResponse,
   CheckSlugResponse,
   EditConflictError,
   ErrorCode,
   EventID,
-  EventUpdateBody,
   SignupID,
 } from "@tietokilta/ilmomasiina-models";
 import adminApiFetch from "../../api";
@@ -15,6 +17,8 @@ import {
   CATEGORIES_LOADED,
   EDIT_CONFLICT,
   EDIT_CONFLICT_DISMISSED,
+  EDIT_NEW_SIGNUP,
+  EDIT_SIGNUP,
   EVENT_LOAD_FAILED,
   EVENT_LOADED,
   EVENT_SAVING,
@@ -23,8 +27,10 @@ import {
   MOVE_TO_QUEUE_CANCELED,
   MOVE_TO_QUEUE_WARNING,
   RESET,
+  SAVED_SIGNUP,
+  SIGNUP_EDIT_CANCELED,
 } from "./actionTypes";
-import type { EditorEvent } from "./types";
+import type { AdminSignupWithQuota, ConvertedEditorEvent, EditorEvent, EditorSignup } from "./types";
 
 export enum EditorEventType {
   ONLY_EVENT = "event",
@@ -36,8 +42,8 @@ export const defaultEvent = (): EditorEvent => ({
   eventType: EditorEventType.EVENT_WITH_SIGNUP,
   title: "",
   slug: "",
-  date: undefined,
-  endDate: undefined,
+  date: null,
+  endDate: null,
   webpageUrl: "",
   facebookUrl: "",
   category: "",
@@ -46,8 +52,8 @@ export const defaultEvent = (): EditorEvent => ({
   price: "",
   signupsPublic: false,
 
-  registrationStartDate: undefined,
-  registrationEndDate: undefined,
+  registrationStartDate: null,
+  registrationEndDate: null,
 
   openQuotaSize: 0,
   useOpenQuota: false,
@@ -144,6 +150,29 @@ export const categoriesLoaded = (categories: string[]) =>
     payload: categories,
   };
 
+export const editSignup = (signup: AdminSignupWithQuota) =>
+  <const>{
+    type: EDIT_SIGNUP,
+    payload: signup,
+  };
+
+export const editNewSignup = (payload: { language: string }) =>
+  <const>{
+    type: EDIT_NEW_SIGNUP,
+    payload,
+  };
+
+export const savedSignup = (payload: { saved: AdminSignupSchema; formData: EditorSignup }) =>
+  <const>{
+    type: SAVED_SIGNUP,
+    payload,
+  };
+
+export const signupEditCanceled = () =>
+  <const>{
+    type: SIGNUP_EDIT_CANCELED,
+  };
+
 export type EditorActions =
   | ReturnType<typeof resetState>
   | ReturnType<typeof loaded>
@@ -156,7 +185,11 @@ export type EditorActions =
   | ReturnType<typeof moveToQueueCanceled>
   | ReturnType<typeof editConflictDetected>
   | ReturnType<typeof editConflictDismissed>
-  | ReturnType<typeof categoriesLoaded>;
+  | ReturnType<typeof categoriesLoaded>
+  | ReturnType<typeof editSignup>
+  | ReturnType<typeof editNewSignup>
+  | ReturnType<typeof savedSignup>
+  | ReturnType<typeof signupEditCanceled>;
 
 function eventType(event: AdminEventResponse): EditorEventType {
   if (event.date === null) {
@@ -171,10 +204,10 @@ function eventType(event: AdminEventResponse): EditorEventType {
 export const serverEventToEditor = (event: AdminEventResponse): EditorEvent => ({
   ...event,
   eventType: eventType(event),
-  date: event.date ? new Date(event.date) : undefined,
-  endDate: event.endDate ? new Date(event.endDate) : undefined,
-  registrationStartDate: event.registrationStartDate ? new Date(event.registrationStartDate) : undefined,
-  registrationEndDate: event.registrationEndDate ? new Date(event.registrationEndDate) : undefined,
+  date: event.date ? new Date(event.date) : null,
+  endDate: event.endDate ? new Date(event.endDate) : null,
+  registrationStartDate: event.registrationStartDate ? new Date(event.registrationStartDate) : null,
+  registrationEndDate: event.registrationEndDate ? new Date(event.registrationEndDate) : null,
   quotas: event.quotas.map((quota) => ({
     ...quota,
     key: quota.id,
@@ -187,7 +220,7 @@ export const serverEventToEditor = (event: AdminEventResponse): EditorEvent => (
   })),
 });
 
-const editorEventToServer = (form: EditorEvent): EventUpdateBody => ({
+export const editorEventToServer = (form: EditorEvent): ConvertedEditorEvent => ({
   ...form,
   date: form.eventType === EditorEventType.ONLY_SIGNUP ? null : (form.date?.toISOString() ?? null),
   endDate: form.eventType === EditorEventType.ONLY_SIGNUP ? null : (form.endDate?.toISOString() ?? null),
@@ -196,7 +229,7 @@ const editorEventToServer = (form: EditorEvent): EventUpdateBody => ({
   registrationEndDate:
     form.eventType === EditorEventType.ONLY_EVENT ? null : (form.registrationEndDate?.toISOString() ?? null),
   quotas: form.quotas,
-  openQuotaSize: form.useOpenQuota ? form.openQuotaSize : 0,
+  openQuotaSize: form.useOpenQuota && form.openQuotaSize ? form.openQuotaSize : 0,
   questions: form.questions.map((question) => ({
     ...question,
     options: question.type === "select" || question.type === "checkbox" ? question.options : null,
@@ -310,5 +343,33 @@ export const deleteSignup = (id: SignupID) => async (dispatch: DispatchAction, g
     return true;
   } catch (e) {
     return false;
+  }
+};
+
+export const saveSignup = (formData: EditorSignup) => async (dispatch: DispatchAction, getState: GetState) => {
+  const { accessToken } = getState().auth;
+
+  if (formData.id == null) {
+    const saved = await adminApiFetch<AdminSignupSchema>(
+      `admin/signups`,
+      {
+        accessToken,
+        method: "POST",
+        body: formData satisfies AdminSignupCreateBody,
+      },
+      dispatch,
+    );
+    dispatch(savedSignup({ saved, formData }));
+  } else {
+    const saved = await adminApiFetch<AdminSignupSchema>(
+      `admin/signups/${formData.id}`,
+      {
+        accessToken,
+        method: "PATCH",
+        body: formData satisfies AdminSignupUpdateBody,
+      },
+      dispatch,
+    );
+    dispatch(savedSignup({ saved, formData }));
   }
 };

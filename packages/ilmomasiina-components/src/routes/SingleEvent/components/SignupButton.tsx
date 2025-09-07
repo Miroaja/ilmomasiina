@@ -10,7 +10,7 @@ import { useNavigate } from "../../../config/router";
 import { usePaths } from "../../../contexts/paths";
 import { beginSignup, useSingleEventContext } from "../../../modules/singleEvent";
 import { errorDesc } from "../../../utils/errorMessage";
-import { signupState, useSignupStateText } from "../../../utils/signupStateText";
+import { SignupState, signupState, useSignupStateText } from "../../../utils/signupStateText";
 
 // Show the countdown one minute before opening the signup.
 const COUNTDOWN_DURATION = 60 * 1000;
@@ -26,6 +26,7 @@ const SignupButton = ({ isOpen, isClosed, seconds, total }: SignupButtonProps) =
   const navigate = useNavigate();
   const paths = usePaths();
   const { registrationStartDate, registrationEndDate, quotas } = useSingleEventContext().event!;
+  const { preview } = useSingleEventContext();
   const eventState = signupState(registrationStartDate, registrationEndDate);
   const [submitting, setSubmitting] = useState(false);
   const isOnly = quotas.length === 1;
@@ -67,18 +68,27 @@ const SignupButton = ({ isOpen, isClosed, seconds, total }: SignupButtonProps) =
           <span style={{ color: "green" }}>{` (${seconds} s)`}</span>
         )}
       </p>
-      {quotas.map((quota) => (
-        <Button
-          key={quota.id}
-          type="button"
-          variant="secondary"
-          disabled={!isOpen || submitting}
-          className="ilmo--signup-button"
-          onClick={() => onClick(quota.id)}
-        >
-          {isOnly ? t("singleEvent.signupButton.singleQuota") : t("singleEvent.signupButton", { quota: quota.title })}
-        </Button>
-      ))}
+      {
+        // eslint-disable-next-line no-nested-ternary
+        eventState.state === SignupState.disabled ? null : preview ? (
+          <Button onClick={() => preview.setPreviewingForm(true)}>{t("singleEvent.signupButton.preview")}</Button>
+        ) : (
+          quotas.map((quota) => (
+            <Button
+              key={quota.id}
+              type="button"
+              variant="secondary"
+              disabled={!isOpen || submitting}
+              className="ilmo--signup-button"
+              onClick={() => onClick(quota.id)}
+            >
+              {isOnly
+                ? t("singleEvent.signupButton.singleQuota")
+                : t("singleEvent.signupButton", { quota: quota.title })}
+            </Button>
+          ))
+        )
+      }
     </div>
   );
 };

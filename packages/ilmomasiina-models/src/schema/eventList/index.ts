@@ -1,12 +1,12 @@
 import { Static, Type } from "@sinclair/typebox";
 
-import { adminListEventAttributes, eventIdentity, userListEventAttributes } from "../event/attributes";
+import { adminEventListAttributes, eventIdentity, userEventListAttributes } from "../event/attributes";
 import { quotaWithSignupCount } from "../quotaWithSignups";
 
 /** Schema for an item of an event list from the admin API. */
-const adminEventListItemSchema = Type.Intersect([
+const adminEventListItemSchema = Type.Composite([
   eventIdentity,
-  adminListEventAttributes,
+  adminEventListAttributes,
   Type.Object({
     quotas: Type.Array(quotaWithSignupCount, {
       description: "The quotas in this event, with signup counts.",
@@ -18,9 +18,9 @@ const adminEventListItemSchema = Type.Intersect([
 export const adminEventListResponse = Type.Array(adminEventListItemSchema);
 
 /** Schema for an item of an event list from the public API. */
-const userEventListItemSchema = Type.Intersect([
+const userEventListItemSchema = Type.Composite([
   eventIdentity,
-  userListEventAttributes,
+  userEventListAttributes,
   Type.Object({
     quotas: Type.Array(quotaWithSignupCount, {
       description: "The quotas in this event, with signup counts.",
@@ -36,6 +36,11 @@ export const eventListQuery = Type.Object({
   category: Type.Optional(
     Type.String({
       description: "If set, only events with the provided category are included.",
+    }),
+  ),
+  maxAge: Type.Optional(
+    Type.Integer({
+      description: "If set to a number, only events at most that many days old are included.",
     }),
   ),
 });

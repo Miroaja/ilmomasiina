@@ -1,6 +1,7 @@
 import React, { MouseEvent } from "react";
 
 import sumBy from "lodash-es/sumBy";
+import { Button } from "react-bootstrap";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -12,7 +13,7 @@ import type { AdminEventListItem as AdminEventListItemSchema } from "@tietokilta
 import { deleteEvent, getAdminEvents } from "../../modules/adminEvents/actions";
 import appPaths from "../../paths";
 import { useTypedDispatch } from "../../store/reducers";
-import { isEventInPast } from "../../utils/eventState";
+import { isEventHiddenFromUsersDueToAge } from "../../utils/eventState";
 
 type Props = {
   event: AdminEventListItemSchema;
@@ -46,10 +47,10 @@ const AdminEventListItem = ({ event }: Props) => {
   let status;
   if (draft) {
     status = t("adminEvents.status.draft");
-  } else if (isEventInPast(event)) {
+  } else if (isEventHiddenFromUsersDueToAge(event)) {
     status = date === null ? t("adminEvents.status.closed") : t("adminEvents.status.ended");
   } else if (!listed) {
-    status = t("adminEvents.status.hidden");
+    status = <Link to={appPaths.eventDetails(slug)}>{t("adminEvents.status.hidden")}</Link>;
   } else {
     status = <Link to={appPaths.eventDetails(slug)}>{t("adminEvents.status.published")}</Link>;
   }
@@ -63,12 +64,12 @@ const AdminEventListItem = ({ event }: Props) => {
       <td>{status}</td>
       <td>{sumBy(quotas, "signupCount")}</td>
       <td>
-        <Link to={appPaths.adminEditEvent(id)}>{t("adminEvents.action.edit")}</Link>
-        &ensp;/&ensp;
-        {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-        <a href="#" onClick={onDelete} role="button">
+        <Button as={Link} variant="primary" size="sm" to={appPaths.adminEditEvent(id)}>
+          {t("adminEvents.action.edit")}
+        </Button>
+        <Button variant="danger" size="sm" onClick={onDelete}>
           {t("adminEvents.action.delete")}
-        </a>
+        </Button>
       </td>
     </tr>
   );

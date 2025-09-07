@@ -1,12 +1,17 @@
 import moment from "moment-timezone";
 
+import { SignupStatus } from "@tietokilta/ilmomasiina-models";
 import config from "../config";
 import i18n from "../i18n";
 import { Signup } from "../models/signup";
 import { generateToken } from "../routes/signups/editTokens";
-import EmailService from ".";
+import EmailService, { ConfirmationMailParams } from ".";
 
-export default async function sendSignupConfirmationMail(signup: Signup) {
+export default async function sendSignupConfirmationMail(
+  signup: Signup,
+  type: ConfirmationMailParams["type"],
+  admin: boolean,
+) {
   if (signup.email === null) return;
 
   const lng = signup.language ?? undefined;
@@ -28,8 +33,6 @@ export default async function sendSignupConfirmationMail(signup: Signup) {
       answer: Array.isArray(answer!.answer) ? answer!.answer.join(", ") : answer!.answer,
     }));
 
-  const edited = answers.some((answer) => answer.createdAt.getTime() !== answer.updatedAt.getTime());
-
   const dateFormat = i18n.t("dateFormat.general", { lng });
   const date = event.date && moment(event.date).tz(config.timezone).format(dateFormat);
 
@@ -44,7 +47,9 @@ export default async function sendSignupConfirmationMail(signup: Signup) {
     email: signup.email,
     quota: quota.title,
     answers: questionFields,
-    edited,
+    queuePosition: signup.status === SignupStatus.IN_QUEUE ? signup.position : null,
+    type,
+    admin,
     date,
     event,
     cancelLink,

@@ -1,6 +1,6 @@
 import { Static, Type } from "@sinclair/typebox";
 
-import { ErrorCode } from "../../enum";
+import { ErrorCode, SignupFieldError } from "../../enum";
 import { questionID } from "../question/attributes";
 import { quotaID } from "../quota/attributes";
 
@@ -12,7 +12,7 @@ export const errorResponse = Type.Object({
 });
 
 /** Response schema for an edit conflicting with another edit on the server. */
-export const editConflictError = Type.Intersect([
+export const editConflictError = Type.Composite([
   errorResponse,
   Type.Object({
     updatedAt: Type.String({
@@ -29,12 +29,35 @@ export const editConflictError = Type.Intersect([
 ]);
 
 /** Response schema for an edit that would move some signups back to the queue. */
-export const wouldMoveSignupsToQueueError = Type.Intersect([
+export const wouldMoveSignupsToQueueError = Type.Composite([
   errorResponse,
   Type.Object({
     count: Type.Integer({
       description: "Number of signups that would end up back in the queue if the action is executed.",
     }),
+  }),
+]);
+
+/** Schema for validation errors on a signup. */
+const signupValidationErrors = Type.Object({
+  firstName: Type.Optional(Type.Enum(SignupFieldError)),
+  lastName: Type.Optional(Type.Enum(SignupFieldError)),
+  email: Type.Optional(Type.Enum(SignupFieldError)),
+  answers: Type.Optional(
+    Type.Record(questionID, Type.Enum(SignupFieldError), {
+      description: "The errors for answers, indexed by question ID.",
+    }),
+  ),
+});
+
+/** Schema for validation errors on a signup. */
+export type SignupValidationErrors = Static<typeof signupValidationErrors>;
+
+/** Response schema for an invalid signup edit. */
+export const signupValidationError = Type.Composite([
+  errorResponse,
+  Type.Object({
+    errors: signupValidationErrors,
   }),
 ]);
 
@@ -44,3 +67,5 @@ export type ErrorResponse = Static<typeof errorResponse>;
 export type EditConflictError = Static<typeof editConflictError>;
 /** Response schema for an edit that would move some signups back to the queue. */
 export type WouldMoveSignupsToQueueError = Static<typeof wouldMoveSignupsToQueueError>;
+/** Response schema for an invalid signup edit. */
+export type SignupValidationError = Static<typeof signupValidationError>;

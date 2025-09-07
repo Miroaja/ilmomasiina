@@ -22,6 +22,7 @@ export enum AuditEvent {
   UNPUBLISH_EVENT = "event.unpublish",
   EDIT_EVENT = "event.edit",
   PROMOTE_SIGNUP = "signup.queuePromote",
+  CREATE_SIGNUP = "signup.create",
   DELETE_SIGNUP = "signup.delete",
   EDIT_SIGNUP = "signup.edit",
   CREATE_USER = "user.create",
@@ -42,5 +43,15 @@ export enum ErrorCode {
   CANNOT_DELETE_SELF = "CannotDeleteSelf",
   INITIAL_SETUP_NEEDED = "InitialSetupNeeded",
   INITIAL_SETUP_ALREADY_DONE = "InitialSetupAlreadyDone",
+  SIGNUP_VALIDATION_ERROR = "SignupValidationError",
   VALIDATION_ERROR = "FST_ERR_VALIDATION",
+}
+
+export enum SignupFieldError {
+  MISSING = "missing",
+  WRONG_TYPE = "wrongType",
+  TOO_LONG = "tooLong",
+  INVALID_EMAIL = "invalidEmail",
+  NOT_A_NUMBER = "notANumber",
+  NOT_AN_OPTION = "notAnOption",
 }

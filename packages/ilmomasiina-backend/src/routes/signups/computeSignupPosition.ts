@@ -1,3 +1,4 @@
+import debug from "debug";
 import moment from "moment-timezone";
 import { Transaction, WhereOptions } from "sequelize";
 
@@ -11,6 +12,8 @@ import { Event } from "../../models/event";
 import { Quota } from "../../models/quota";
 import { Signup } from "../../models/signup";
 import { WouldMoveSignupsToQueue } from "../admin/events/errors";
+
+const perfLog = debug("app:perf:signups");
 
 async function sendPromotedFromQueueMail(signup: Signup, eventId: Event["id"]) {
   if (signup.email === null) return;
@@ -28,22 +31,21 @@ async function sendPromotedFromQueueMail(signup: Signup, eventId: Event["id"]) {
   await EmailService.sendPromotedFromQueueMail(signup.email, signup.language, params);
 }
 
-/**
- * Updates the status and position attributes on all signups in the given event. Also sends "promoted from queue"
- * emails to affected users. Returns the new statuses for all signups.
- *
- * By default, recomputations can move signups into the queue. This ensures that we don't cause random errors for
- * ordinary users. `moveSignupsToQueue = false` is passed if a warning can be shown (i.e. in admin-side editors).
- */
-export async function refreshSignupPositions(
+/** Internal, non-batched version. See below for explanation of what this does. */
+async function refreshSignupPositionsInternal(
   eventRef: Event,
-  transaction?: Transaction,
-  moveSignupsToQueue: boolean = true,
+  transaction: Transaction | undefined,
+  moveSignupsToQueue: boolean,
+  queuedCount: number,
 ): Promise<Signup[]> {
   // Wrap in transaction if not given
   if (!transaction) {
-    return getSequelize().transaction(async (trans) => refreshSignupPositions(eventRef, trans));
+    return getSequelize().transaction(async (trans) =>
+      refreshSignupPositionsInternal(eventRef, trans, moveSignupsToQueue, queuedCount),
+    );
   }
+
+  const startTime = performance.now();
 
   // Lock event to prevent simultaneous changes
   const event = await Event.findByPk(eventRef.id, {
@@ -137,7 +139,87 @@ export async function refreshSignupPositions(
     }),
   );
 
+  const duration = performance.now() - startTime;
+  perfLog(
+    `Computed ${result.length} signup positions in ${event.id} in ${duration.toFixed(2)}ms (batch of ${queuedCount})`,
+  );
+
   return result.map(({ signup }) => signup);
+}
+
+const refreshQueues = new Map<
+  Event["id"],
+  {
+    ongoing?: Promise<unknown>;
+    queued?: Promise<Signup[]>;
+    queuedCount?: number;
+  }
+>();
+
+/**
+ * Updates the status and position attributes on all signups in the given event. Also sends "promoted from queue"
+ * emails to affected users. Returns the new statuses for all signups.
+ *
+ * By default, recomputations can move signups into the queue. This ensures that we don't cause random errors for
+ * ordinary users. `moveSignupsToQueue = false` is passed if a warning can be shown (i.e. in admin-side editors).
+ *
+ * This action is batched due to database locking - if a call is already ongoing, the next call will be delayed and
+ * performed only once for all calls performed during a previous operation.
+ */
+export async function refreshSignupPositions(
+  eventRef: Event,
+  transaction?: Transaction,
+  moveSignupsToQueue: boolean = true,
+): Promise<Signup[]> {
+  // If a transaction is passed, we need to do the refresh within that transaction.
+  // It may need to wait for other transactions, but let's handle that on the DB level.
+  if (transaction) {
+    return refreshSignupPositionsInternal(eventRef, transaction, moveSignupsToQueue, 1);
+  }
+
+  let queue = refreshQueues.get(eventRef.id);
+  if (!queue) {
+    queue = {};
+    refreshQueues.set(eventRef.id, queue);
+  }
+
+  // If a another refresh is already ongoing and another is queued, reuse the last queued one,
+  // since it will be executed after this moment anyway.
+  if (queue.queued) {
+    queue.queuedCount! += 1;
+    return queue.queued;
+  }
+
+  // Otherwise, if another refresh is already ongoing, queue a new one after it completes.
+  if (queue.ongoing) {
+    const queued = queue.ongoing
+      .catch(() => {
+        // ignore errors, we always want to run after the ongoing refresh finishes
+      })
+      .then(async () => {
+        const count = queue!.queuedCount!;
+        queue!.ongoing = queue!.queued;
+        queue!.queued = undefined;
+        queue!.queuedCount = 0;
+        try {
+          return await refreshSignupPositionsInternal(eventRef, transaction, moveSignupsToQueue, count);
+        } finally {
+          if (queue!.ongoing === queued) queue!.ongoing = undefined;
+        }
+      });
+    queue.queued = queued;
+    queue.queuedCount = 1;
+    return queued;
+  }
+
+  // Otherwise, immediately perform a refresh.
+  const promise = refreshSignupPositionsInternal(eventRef, transaction, moveSignupsToQueue, 1);
+  queue.ongoing = promise;
+  try {
+    return await promise;
+  } finally {
+    if (queue.ongoing === promise) queue.ongoing = undefined;
+  }
 }
 
 /**

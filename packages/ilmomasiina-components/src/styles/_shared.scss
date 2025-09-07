@@ -18,7 +18,8 @@
   column-gap: $spacer * 0.5;
 
   :first-child {
-    flex: 1 0 auto;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   // on narrow screens, always wrap the button(s)
@@ -44,4 +45,29 @@
   justify-content: center;
   align-items: center;
   padding: 50px;
+}
+
+@if $lighter-primary-hover {
+  .btn-primary {
+    @include button-variant(
+      $primary,
+      $primary,
+      $hover-background: lighten($primary, 15%),
+      $hover-border: lighten($primary, 20%),
+      $active-background: lighten($primary, 20%),
+      $active-border: lighten($primary, 25%)
+    );
+  }
+}
+@if $lighter-secondary-hover {
+  .btn-secondary {
+    @include button-variant(
+      $primary,
+      $primary,
+      $hover-background: lighten($primary, 15%),
+      $hover-border: lighten($primary, 20%),
+      $active-background: lighten($primary, 20%),
+      $active-border: lighten($primary, 25%)
+    );
+  }
 }

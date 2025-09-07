@@ -33,12 +33,18 @@ export default function BaseFieldRow({
 }: BaseFieldRowProps) {
   return (
     <Form.Group as={Row} controlId={controlId}>
-      <Form.Label column sm="3" data-required={required} className={checkAlign ? "pt-0" : ""}>
-        {label}
-      </Form.Label>
+      <Col sm="3" className="ilmo--label-column">
+        <Form.Label data-required={required} className={`col-form-label ${checkAlign ? "pt-0" : ""}`}>
+          {label}
+        </Form.Label>
+      </Col>
       <Col sm="9">
         {children}
-        {error && <Form.Control.Feedback type="invalid">{error}</Form.Control.Feedback>}
+        {error && (
+          // Use text-danger instead of invalid-feedback here. invalid-feedback is hidden automatically when the
+          // previous element isn't .is-invalid, but that doesn't work with checkbox arrays.
+          <Form.Text className="text-danger">{error}</Form.Text>
+        )}
         {extraFeedback}
         {help && <Form.Text muted>{help}</Form.Text>}
       </Col>

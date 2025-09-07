@@ -140,8 +140,15 @@ const config = {
   /** Host for Mailgun API server. */
   mailgunHost: envString("MAILGUN_HOST", "api.eu.mailgun.net"),
 
+  /** How long each user has to edit their signup after creation. */
+  signupConfirmMins: envInteger("SIGNUP_CONFIRM_MINS", 30),
+  /** Whether signups can be edited for SIGNUP_CONFIRM_MINS after creation, even if signups for the event have closed. */
+  signupConfirmAfterClose: envBoolean("SIGNUP_CONFIRM_AFTER_CLOSE", false),
+
   /** How long after an event's date to remove signup details. */
   anonymizeAfterDays: envInteger("ANONYMIZE_AFTER_DAYS", 180),
+  /** How long after an event's date it will become fully invisible to users. */
+  hideEventAfterDays: envInteger("HIDE_EVENT_AFTER_DAYS", 180),
   /** How long items stay in the database after deletion, in order to allow restoring accidentally deleted items. */
   deletionGracePeriod: envInteger("DELETION_GRACE_PERIOD_DAYS", 14),
 } as const;
