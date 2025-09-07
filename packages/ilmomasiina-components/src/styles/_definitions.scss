@@ -20,6 +20,11 @@ $text-muted: #888 !default;
 $secondary-background: #f1f1f1 !default;
 $secondary-text-color: #7a7a7a !default;
 
+// Default button hover color logic doesn't work with Tietokilta's black $primary.
+// You can disable this if you use something light.
+$lighter-primary-hover: false !default;
+$lighter-secondary-hover: false !default;
+
 // Import Bootstrap core mixins/variables/functions for use in Ilmomasiina's SCSS.
 
 @import "bootstrap/scss/functions";
