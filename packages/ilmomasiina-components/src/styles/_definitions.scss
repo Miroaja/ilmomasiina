@@ -27,10 +27,10 @@ $lighter-secondary-hover: false !default;
 
 // Links are impossible to see with Tietokilta's black $primary.
 // You can disable this if you use something light.
-$force-link-underline: true !default;
+$force-link-underline: false !default;
 
 // If you don't want a header logo, set this to false.
-$header-logo: true !default; // sass can perish
+$header-logo: false !default; // sass can perish
 
 // Import Bootstrap core mixins/variables/functions for use in Ilmomasiina's SCSS.
 
